@@ -1,0 +1,488 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./prisma/generated/prisma"
+}
+
+// ==================== CORE USER MANAGEMENT ====================
+model User {
+  id                  String     @id @default(uuid())
+  employeeCode        String?    @unique
+  firstName           String
+  lastName            String
+  email               String     @unique
+  password            String
+  phoneNumber         String?
+  roleId              String
+  departmentId        String?
+  designationId       String?
+  levelId             String?
+  status              UserStatus @default(PENDING) // For onboarding flow
+  isActive            Boolean    @default(true)
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
+  lastLogin           DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  // Relations
+  role        Role         @relation(fields: [roleId], references: [id])
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  designation Designation? @relation(fields: [designationId], references: [id])
+  level       Level?       @relation(fields: [levelId], references: [id])
+
+  // HR Actions
+  createdOffers  Offer[] @relation("CreatedOffers")
+  approvedOffers Offer[] @relation("ApprovedOffers")
+
+  // Leave Management
+  leaveApplications Leave[] @relation("LeaveApplicant")
+  approvedLeaves    Leave[] @relation("LeaveApprover")
+
+  // HMO Management
+  hmoApplications HMO[] @relation("HMOApplicant")
+  approvedHMOs    HMO[] @relation("HMOApprover")
+
+  // E-Memo Management
+  memoApplications Memo[] @relation("MemoApplicant")
+  approvedMemos    Memo[] @relation("MemoApprover")
+
+  // E-Voucher Management
+  voucherApplications Voucher[] @relation("VoucherApplicant")
+  approvedVouchers    Voucher[] @relation("VoucherApprover")
+  generatedVouchers   Voucher[] @relation("VoucherGenerator")
+
+  // Exit/Retirement
+  exitApplications Exit[] @relation("ExitApplicant")
+  approvedExits    Exit[] @relation("ExitApprover")
+
+  // Document Management
+  uploadedDocuments Document[] @relation("DocumentUploader")
+
+  // Reading List
+  readingProgress ReadingProgress[]
+
+  // Notifications
+  notifications Notification[]
+}
+
+enum UserStatus {
+  PENDING // Offer sent, awaiting acceptance
+  ACTIVE // Active employee
+  ON_LEAVE // Currently on leave
+  SUSPENDED // Temporarily suspended
+  EXITED // Resigned/Retired
+  TERMINATED // Terminated
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique // HR, HOD, EXCO, EMPLOYEE, FINANCE
+  description String?
+  permissions Json? // Store granular permissions
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Department {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  code         String        @unique
+  hodId        String? // Head of Department
+  users        User[]
+  designations Designation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Designation {
+  id           String      @id @default(uuid())
+  name         String
+  code         String      @unique
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  users        User[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Level {
+  id                      String   @id @default(uuid())
+  name                    String
+  code                    String   @unique
+  annualLeaveDays         Int      @default(0)
+  basicSalary             Float    @default(0)
+  transportAllowance      Float    @default(0)
+  domesticAllowance       Float    @default(0)
+  utilityAllowance        Float    @default(0)
+  lunchSubsidy            Float    @default(0)
+  entertainmentAllowance  Float    @default(0)
+  telephoneAllowance      Float    @default(0)
+  fuelAllowance           Float    @default(0)
+  maintenanceAllowance    Float    @default(0)
+  housingAllowance        Float    @default(0)
+  dressingAllowance       Float    @default(0)
+  furnitureAllowance      Float    @default(0)
+  educationAllowance      Float    @default(0)
+  medicalAllowance        Float    @default(0)
+  passageAllowance        Float    @default(0)
+  annualLeaveAllowance    Float    @default(0)
+  thirteenthMonth         Float    @default(0)
+  total                   Float    @default(0)
+  leaveExpirationInterval Int      @default(0)
+  minimumLeaveDays        Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  users                   User[]
+}
+
+// ==================== CANDIDATE & OFFER MANAGEMENT ====================
+model Candidate {
+  id          String          @id @default(uuid())
+  firstName   String
+  lastName    String
+  email       String          @unique
+  phoneNumber String
+  position    String
+  department  String?
+  resumeUrl   String?
+  status      CandidateStatus @default(SCREENING)
+  offers      Offer[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum CandidateStatus {
+  SCREENING
+  INTERVIEWING
+  OFFER_SENT
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  ONBOARDING
+  HIRED
+  REJECTED
+}
+
+model Offer {
+  id              String      @id @default(uuid())
+  candidateId     String
+  position        String
+  departmentId    String?
+  designationId   String?
+  levelId         String?
+  salary          Float
+  startDate       DateTime?
+  offerLetter     String? // URL to offer letter PDF
+  status          OfferStatus @default(PENDING)
+  acceptanceToken String?     @unique // For email link acceptance
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdById     String
+  approvedById    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  candidate  Candidate @relation(fields: [candidateId], references: [id])
+  createdBy  User      @relation("CreatedOffers", fields: [createdById], references: [id])
+  approvedBy User?     @relation("ApprovedOffers", fields: [approvedById], references: [id])
+}
+
+enum OfferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  ACCEPTED
+  EXPIRED
+}
+
+// ==================== LEAVE MANAGEMENT ====================
+model Leave {
+  id               String         @id @default(uuid())
+  applicantId      String
+  leaveType        LeaveType
+  startDate        DateTime
+  endDate          DateTime
+  totalDays        Int
+  reason           String
+  status           ApprovalStatus @default(PENDING)
+  hodApprovedAt    DateTime?
+  hodApprovedById  String?
+  excoApprovedAt   DateTime?
+  excoApprovedById String?
+  rejectionReason  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  applicant   User  @relation("LeaveApplicant", fields: [applicantId], references: [id])
+  hodApprover User? @relation("LeaveApprover", fields: [hodApprovedById], references: [id])
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  COMPASSIONATE
+  STUDY
+  UNPAID
+}
+
+model LeaveBalance {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  year        Int
+  totalDays   Int
+  usedDays    Int       @default(0)
+  pendingDays Int       @default(0)
+  balance     Int
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ==================== HOLIDAY MANAGEMENT ====================
+model Holiday {
+  id          String   @id @default(uuid())
+  name        String
+  date        DateTime
+  description String?
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== HMO MANAGEMENT ====================
+model HMO {
+  id              String         @id @default(uuid())
+  applicantId     String
+  dependentName   String?
+  relationship    String?
+  hospitalName    String
+  reason          String
+  estimatedCost   Float?
+  status          ApprovalStatus @default(PENDING)
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  applicant User  @relation("HMOApplicant", fields: [applicantId], references: [id])
+  approver  User? @relation("HMOApprover", fields: [approvedById], references: [id])
+}
+
+// ==================== E-MEMO MANAGEMENT ====================
+model Memo {
+  id              String         @id @default(uuid())
+  applicantId     String
+  subject         String
+  content         String
+  category        MemoCategory
+  priority        Priority       @default(NORMAL)
+  attachments     Json? // Array of file URLs
+  status          ApprovalStatus @default(PENDING)
+  hodApprovedAt   DateTime?
+  hodApprovedById String?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  applicant User  @relation("MemoApplicant", fields: [applicantId], references: [id])
+  approver  User? @relation("MemoApprover", fields: [hodApprovedById], references: [id])
+}
+
+enum MemoCategory {
+  REQUEST
+  INFORMATION
+  COMPLAINT
+  PROPOSAL
+  OTHER
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ==================== E-VOUCHER MANAGEMENT ====================
+model Voucher {
+  id               String          @id @default(uuid())
+  voucherNumber    String          @unique
+  applicantId      String
+  purpose          String
+  amount           Float
+  category         VoucherCategory
+  attachments      Json? // Array of receipts/documents
+  status           ApprovalStatus  @default(PENDING)
+  excoApprovedAt   DateTime?
+  excoApprovedById String?
+  generatedById    String?
+  generatedAt      DateTime?
+  paymentDate      DateTime?
+  rejectionReason  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  applicant    User  @relation("VoucherApplicant", fields: [applicantId], references: [id])
+  excoApprover User? @relation("VoucherApprover", fields: [excoApprovedById], references: [id])
+  generator    User? @relation("VoucherGenerator", fields: [generatedById], references: [id])
+}
+
+enum VoucherCategory {
+  TRAVEL
+  PROCUREMENT
+  MAINTENANCE
+  TRAINING
+  ENTERTAINMENT
+  MISCELLANEOUS
+}
+
+// ==================== EXIT/RETIREMENT MANAGEMENT ====================
+model Exit {
+  id              String         @id @default(uuid())
+  applicantId     String
+  exitType        ExitType
+  exitDate        DateTime
+  reason          String
+  noticeDate      DateTime?
+  lastWorkingDay  DateTime?
+  clearanceStatus Json? // Track clearance from different departments
+  status          ApprovalStatus @default(PENDING)
+  hodApprovedAt   DateTime?
+  hodApprovedById String?
+  hrApprovedAt    DateTime?
+  hrApprovedById  String?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  applicant User  @relation("ExitApplicant", fields: [applicantId], references: [id])
+  approver  User? @relation("ExitApprover", fields: [hodApprovedById], references: [id])
+}
+
+enum ExitType {
+  RESIGNATION
+  RETIREMENT
+  TERMINATION
+  CONTRACT_END
+}
+
+// ==================== DOCUMENT MANAGEMENT ====================
+model Document {
+  id           String           @id @default(uuid())
+  title        String
+  description  String?
+  fileUrl      String
+  fileType     String
+  category     DocumentCategory
+  isPublic     Boolean          @default(false)
+  uploadedById String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  uploadedBy User @relation("DocumentUploader", fields: [uploadedById], references: [id])
+}
+
+enum DocumentCategory {
+  POLICY
+  PROCEDURE
+  HANDBOOK
+  FORM
+  TEMPLATE
+  TRAINING
+  OTHER
+}
+
+// ==================== READING LIST ====================
+model ReadingList {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  content     String // Or URL to content
+  category    String
+  isRequired  Boolean  @default(false)
+  isMandatory Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress ReadingProgress[]
+}
+
+model ReadingProgress {
+  id            String    @id @default(uuid())
+  userId        String
+  readingListId String
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  readingList ReadingList @relation(fields: [readingListId], references: [id])
+
+  @@unique([userId, readingListId])
+}
+
+// ==================== NOTIFICATION SYSTEM ====================
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  relatedId String? // ID of related entity (leave, memo, etc.)
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum NotificationType {
+  LEAVE_APPROVAL
+  LEAVE_REJECTION
+  MEMO_APPROVAL
+  MEMO_REJECTION
+  VOUCHER_APPROVAL
+  VOUCHER_REJECTION
+  HMO_APPROVAL
+  HMO_REJECTION
+  EXIT_APPROVAL
+  EXIT_REJECTION
+  OFFER_RECEIVED
+  SYSTEM_ANNOUNCEMENT
+}
+
+// ==================== AUDIT LOG ====================
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  changes   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+// ==================== APPROVAL WORKFLOW ====================
+enum ApprovalStatus {
+  PENDING
+  HOD_APPROVED
+  EXCO_APPROVED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
