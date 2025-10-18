@@ -5,10 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://hrapp-frontend-hvp5.vercel.app/',
-    ],
+    origin: ['http://localhost:5173', 'https://hrapp-frontend-hvp5.vercel.app'],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
