@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -18,6 +19,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
+@ApiTags('Users')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
@@ -25,11 +27,13 @@ export class UserController {
 
   @Post()
   @Roles('HR', 'ADMIN')
+  @ApiOperation({ summary: 'Create User', description: 'Create a new user' })
   async create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
   @Get()
   @Roles('HR', 'ADMIN', 'HOD')
+  @ApiOperation({ summary: 'Get Users', description: 'Get all users' })
   findAll(
     @Query('departmentId') departmentId?: string,
     @Query('roleId') roleId?: string,

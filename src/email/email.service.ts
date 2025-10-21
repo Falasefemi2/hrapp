@@ -16,6 +16,103 @@ export class EmailService {
     this.resend = new Resend(apiKey);
   }
 
+  async sendWelcomeCandidateEmail(
+    email: string,
+    firstName: string,
+    position: string,
+  ) {
+    try {
+      const result = await this.resend.emails.send({
+        from: 'Femi Company <onboarding@resend.dev>',
+        to: email,
+        subject: 'Welcome to Femi Company - Application Received',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                margin: 0;
+                padding: 0;
+              }
+              .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f9f9f9;
+              }
+              .content {
+                background-color: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+              .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+                border-radius: 8px 8px 0 0;
+                margin: -30px -30px 30px -30px;
+              }
+              .footer {
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #dee2e6;
+                font-size: 13px;
+                color: #6c757d;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="content">
+                <div class="header">
+                  <h1 style="margin: 0;">Application Received</h1>
+                  <p style="margin: 10px 0 0 0; opacity: 0.9;">Thank you for applying!</p>
+                </div>
+                
+                <p>Dear <strong>${firstName}</strong>,</p>
+                
+                <p>Thank you for applying for the position of <strong>${position}</strong> at Femi Company. We are excited to review your application!</p>
+                
+                <p>Our HR team will carefully review your application and qualifications. If your profile matches our requirements, we will contact you to discuss the next steps in the recruitment process.</p>
+                
+                <p>Here's what you can expect:</p>
+                <ul>
+                  <li>Initial application review (1-2 business days)</li>
+                  <li>Possible screening call with HR</li>
+                  <li>Technical/role-specific interviews</li>
+                  <li>Final decision and offer process</li>
+                </ul>
+                
+                <p>We appreciate your interest in joining our team and the time you've taken to apply.</p>
+                
+                <p>Best regards,<br><strong>The HR Team</strong><br>Femi Company</p>
+                
+                <div class="footer">
+                  <p>This is an automated email. Please do not reply to this message.</p>
+                  <p>© ${new Date().getFullYear()} Femi Company. All rights reserved.</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+
+      console.log('Welcome candidate email sent successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to send welcome candidate email:', error);
+      throw error;
+    }
+  }
+
   async sendCredentialsEmail(
     email: string,
     firstName: string,
@@ -170,7 +267,14 @@ export class EmailService {
     email: string,
     candidateName: string,
     position: string,
-    acceptanceToken: string,
+    acceptanceToken: string | null,
+    p0: {
+      position: string;
+      department: string | null;
+      salary: number;
+      startDate: Date | null;
+      expiresAt: Date | null;
+    },
   ) {
     const appUrl = this.configService.get('APP_URL') || 'http://localhost:5173';
     const acceptanceLink = `${appUrl}/accept-offer/${acceptanceToken}`;

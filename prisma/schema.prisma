@@ -8,7 +8,6 @@ generator client {
   output   = "./prisma/generated/prisma"
 }
 
-// ==================== CORE USER MANAGEMENT ====================
 model User {
   id                  String     @id @default(uuid())
   employeeCode        String?    @unique
@@ -21,7 +20,7 @@ model User {
   departmentId        String?
   designationId       String?
   levelId             String?
-  status              UserStatus @default(PENDING) // For onboarding flow
+  status              UserStatus @default(PENDING) 
   isActive            Boolean    @default(true)
   passwordResetToken  String?
   passwordResetExpiry DateTime?
@@ -29,44 +28,35 @@ model User {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  // Relations
   role        Role         @relation(fields: [roleId], references: [id])
   department  Department?  @relation(fields: [departmentId], references: [id])
   designation Designation? @relation(fields: [designationId], references: [id])
   level       Level?       @relation(fields: [levelId], references: [id])
 
-  // HR Actions
   createdOffers  Offer[] @relation("CreatedOffers")
   approvedOffers Offer[] @relation("ApprovedOffers")
 
-  // Leave Management
   leaveApplications Leave[] @relation("LeaveApplicant")
   approvedLeaves    Leave[] @relation("LeaveApprover")
 
-  // HMO Management
   hmoApplications HMO[] @relation("HMOApplicant")
   approvedHMOs    HMO[] @relation("HMOApprover")
 
-  // E-Memo Management
   memoApplications Memo[] @relation("MemoApplicant")
   approvedMemos    Memo[] @relation("MemoApprover")
 
-  // E-Voucher Management
+
   voucherApplications Voucher[] @relation("VoucherApplicant")
   approvedVouchers    Voucher[] @relation("VoucherApprover")
   generatedVouchers   Voucher[] @relation("VoucherGenerator")
 
-  // Exit/Retirement
   exitApplications Exit[] @relation("ExitApplicant")
   approvedExits    Exit[] @relation("ExitApprover")
 
-  // Document Management
   uploadedDocuments Document[] @relation("DocumentUploader")
 
-  // Reading List
   readingProgress ReadingProgress[]
 
-  // Notifications
   notifications Notification[]
 }
 
